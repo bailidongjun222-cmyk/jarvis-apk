@@ -1,0 +1,13 @@
+{
+  "name": "jarvis-assistant",
+  "version": "1.0.0",
+  "description": "J.A.R.V.I.S. Personal Assistant",
+  "main": "www/index.html",
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}
