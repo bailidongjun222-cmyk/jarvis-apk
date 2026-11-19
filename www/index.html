@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>J.A.R.V.I.S. // Tactical Personal Assistant</title>
+  <style>
+    :root {
+      --bg: #080a0f;
+      --panel: #10141f;
+      --panel-2: #171d2c;
+      --panel-3: #1e263a;
+      --text: #f1f5f9;
+      --muted: #8b96b2;
+      --accent: #e11d48;
+      --accent-glow: rgba(225, 29, 72, 0.35);
+      --accent-soft: rgba(225, 29, 72, 0.14);
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background:
+        radial-gradient(circle at 85% 10%, rgba(225, 29, 72, 0.14), transparent 42%),
+        radial-gradient(circle at 10% 90%, rgba(56, 189, 248, 0.08), transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 860px;
+      height: calc(100dvh - 24px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Header & HUD Bar */
+    header {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .reactor {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 14px var(--accent);
+      animation: pulse 2.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.7; }
+    }
+
+    .brand-title {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+    }
+
+    .status-pill {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+
+    .status-pill.online { color: var(--ok); border-color: rgba(16, 185, 129, 0.3); }
+
+    .controls {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 11px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    button.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Quick Command Chips */
+    .quick-bar {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .quick-bar::-webkit-scrollbar { display: none; }
+
+    .chip {
+      white-space: nowrap;
+      font-size: 0.75rem;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--muted);
+    }
+    .chip:hover { color: var(--text); }
+
+    /* Focus Timer Banner */
+    .timer-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(90deg, var(--accent-soft), var(--panel));
+      border: 1px solid rgba(225, 29, 72, 0.35);
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+    .timer-bar.visible { display: flex; }
+    .timer-clock { font-family: monospace; font-size: 1.05rem; font-weight: 700; color: #fff; }
+
+    /* Main Log */
+    .log {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .msg {
+      max-width: 86%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.55;
+      font-size: 0.92rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.jarvis {
+      align-self: flex-start;
+      background: var(--panel-2);
+      border-left: 3px solid var(--accent);
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: var(--accent-soft);
+      border: 1px solid rgba(225, 29, 72, 0.35);
+    }
+
+    .meta {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      letter-spacing: 0.05em;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* Composer */
+    .composer {
+      display: flex;
+      gap: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 8px 10px;
+      align-items: center;
+    }
+
+    input[type="text"], input[type="password"], select, textarea {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 11px;
+      font-size: 0.9rem;
+      outline: none;
+      width: 100%;
+    }
+
+    .composer input {
+      background: transparent;
+      border: none;
+      padding: 6px;
+    }
+
+    .mic-btn.listening {
+      background: var(--accent);
+      border-color: var(--accent);
+      animation: pulse 1s infinite;
+    }
+
+    .send-btn {
+      background: var(--accent);
+      border-color: var(--accent);
+      font-weight: 600;
+      padding: 8px 16px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 88dvh;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal h2 { font-size: 1.05rem; letter-spacing: 0.05em; }
+    .field { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--muted); }
+    .row { display: flex; gap: 8px; justify-content: flex-end; }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel-2);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    .list-item.done span { text-decoration: line-through; opacity: 0.55; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <span class="reactor"></span>
+        <span class="brand-title">J.A.R.V.I.S.</span>
+        <span id="brainStatus" class="status-pill">LOCAL MODE</span>
+      </div>
+      <div class="controls">
+        <button id="tasksModalBtn">Tasks & Notes</button>
+        <button id="voiceToggleBtn">Voice: ON</button>
+        <button id="settingsBtn">AI Config</button>
+        <button id="clearBtn">Clear Log</button>
+      </div>
+    </header>
+
+    <div class="quick-bar">
+      <button class="chip" data-cmd="/briefing">Morning Briefing</button>
+      <button class="chip" data-cmd="/tasks">View Tasks</button>
+      <button class="chip" data-cmd="/notes">View Notes</button>
+      <button class="chip" data-cmd="/focus 25">Focus 25m</button>
+      <button class="chip" data-cmd="/help">Commands</button>
+    </div>
+
+    <div id="timerBar" class="timer-bar">
+      <span id="timerLabel">FOCUS SESSION ACTIVE</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="timerClock" class="timer-clock">25:00</span>
+        <button id="stopTimerBtn">Stop</button>
+      </div>
+    </div>
+
+    <main id="log" class="log"></main>
+
+    <form id="form" class="composer">
+      <button type="button" id="micBtn" class="mic-btn" title="Voice Input">Mic</button>
+      <input id="input" type="text" placeholder="Ask Jarvis anything, or use /todo, /note, /focus 25, /briefing..." autocomplete="off" />
+      <button type="submit" class="send-btn">Send</button>
+    </form>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal-backdrop">
+    <div class="modal">
+      <h2>J.A.R.V.I.S. Neural & Persona Config</h2>
+      <div class="field">
+        <label>Your Name / Title</label>
+        <input id="cfgUserName" type="text" placeholder="e.g., Sir, Boss, Alex" />
+      </div>
+      <div class="field">
+        <label>AI Provider (OpenAI-Compatible Endpoint)</label>
+        <select id="cfgProvider">
+          <option value="local">Offline / Local Built-in Commands Only</option>
+          <option value="openai">OpenAI (api.openai.com)</option>
+          <option value="openrouter">OpenRouter (openrouter.ai)</option>
+          <option value="custom">Custom Endpoint (Ollama / Local / Proxy)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>API Base URL</label>
+        <input id="cfgBaseUrl" type="text" placeholder="https://api.openai.com/v1/chat/completions" />
+      </div>
+      <div class="field">
+        <label>API Key (Saved only in your browser localStorage)</label>
+        <input id="cfgApiKey" type="password" placeholder="sk-..." />
+      </div>
+      <div class="field">
+        <label>Model ID</label>
+        <input id="cfgModel" type="text" placeholder="gpt-4o-mini" />
+      </div>
+      <div class="field">
+        <label>System Persona Prompt</label>
+        <textarea id="cfgPersona" rows="3"></textarea>
+      </div>
+      <div class="row">
+        <button type="button" id="closeSettingsBtn">Cancel</button>
+        <button type="button" id="saveSettingsBtn" class="send-btn">Save Config</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tasks & Notes Drawer Modal -->
+  <div id="dataModal" class="modal-backdrop">
+    <div class="modal">
+      <h2>Persistent Memory: Tasks & Notes</h2>
+      <div class="field">
+        <label>Add Quick Task</label>
+        <div style="display:flex;gap:6px;">
+          <input id="newTaskInput" type="text" placeholder="New task..." />
+          <button type="button" id="addTaskModalBtn" class="send-btn">Add</button>
+        </div>
+      </div>
+      <div id="modalTaskList" style="display:flex;flex-direction:column;gap:6px;"></div>
+
+      <div class="field" style="margin-top:8px;">
+        <label>Saved Notes</label>
+        <div id="modalNoteList" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div class="row">
+        <button type="button" id="closeDataModalBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "jarvis_complete_v2";
+
+    const defaultState = {
+      config: {
+        userName: "Sir",
+        provider: "local",
+        baseUrl: "https://api.openai.com/v1/chat/completions",
+        apiKey: "",
+        model: "gpt-4o-mini",
+        persona: "You are J.A.R.V.I.S., a calm, sharp, proactive personal AI assistant. Keep answers concise, structured, and practical. Address the user naturally."
+      },
+      voiceEnabled: true,
+      tasks: [],
+      notes: [],
+      history: []
+    };
+
+    let state = loadState();
+    let timerInterval = null;
+    let remainingSeconds = 0;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return structuredClone(defaultState);
+        const parsed = JSON.parse(raw);
+        return {
+          ...structuredClone(defaultState),
+          ...parsed,
+          config: { ...defaultState.config, ...(parsed.config || {}) }
+        };
+      } catch {
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateStatusBadge();
+    }
+
+    // DOM References
+    const logEl = document.getElementById("log");
+    const formEl = document.getElementById("form");
+    const inputEl = document.getElementById("input");
+    const brainStatusEl = document.getElementById("brainStatus");
+    const voiceToggleBtn = document.getElementById("voiceToggleBtn");
+    const micBtn = document.getElementById("micBtn");
+
+    function updateStatusBadge() {
+      const hasAi = state.config.provider !== "local" && state.config.apiKey.trim().length > 0;
+      brainStatusEl.textContent = hasAi ? `AI ONLINE (${state.config.model})` : "LOCAL COMMAND MODE";
+      brainStatusEl.classList.toggle("online", hasAi);
+      voiceToggleBtn.textContent = `Voice: ${state.voiceEnabled ? "ON" : "OFF"}`;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, (m) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    function speak(text) {
+      if (!state.voiceEnabled || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const clean = text.replace(/[`*#_]/g, "").slice(0, 450);
+      const utter = new SpeechSynthesisUtterance(clean);
+      utter.rate = 1.04;
+      utter.pitch = 0.94;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function renderMessage(sender, text, timeStr, persist = true) {
+      const time = timeStr || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const wrap = document.createElement("div");
+      wrap.className = `msg ${sender}`;
+      wrap.innerHTML = `<div class="meta"><span>${sender === "jarvis" ? "J.A.R.V.I.S." : state.config.userName.toUpperCase()}</span><span>${time}</span></div>${escapeHtml(text)}`;
+      logEl.appendChild(wrap);
+      logEl.scrollTop = logEl.scrollHeight;
+
+      if (persist) {
+        state.history.push({ sender, text, time });
+        if (state.history.length > 60) state.history = state.history.slice(-60);
+        saveState();
+      }
+    }
+
+    // Focus Timer
+    function startFocusTimer(minutes) {
+      clearInterval(timerInterval);
+      remainingSeconds = Math.max(1, Math.min(180, minutes)) * 60;
+      const bar = document.getElementById("timerBar");
+      const clock = document.getElementById("timerClock");
+      bar.classList.add("visible");
+
+      const tick = () => {
+        const m = String(Math.floor(remainingSeconds / 60)).padStart(2, "0");
+        const s = String(remainingSeconds % 60).padStart(2, "0");
+        clock.textContent = `${m}:${s}`;
+        if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
+          bar.classList.remove("visible");
+          const msg = `Focus block complete, ${state.config.userName}. Ready for your next objective.`;
+          renderMessage("jarvis", msg);
+          speak(msg);
+        }
+        remainingSeconds--;
+      };
+      tick();
+      timerInterval = setInterval(tick, 1000);
+    }
+
+    document.getElementById("stopTimerBtn").addEventListener("click", () => {
+      clearInterval(timerInterval);
+      document.getElementById("timerBar").classList.remove("visible");
+      renderMessage("jarvis", "Focus timer halted.");
+    });
+
+    // Built-in Command Router + AI Fallback
+    async function processInput(raw) {
+      const trimmed = raw.trim();
+      const lower = trimmed.toLowerCase();
+
+      if (lower === "/help") {
+        return [
+          "Available Tactical Commands:",
+          "• /todo <task> — Add a task to persistent memory",
+          "• /tasks — List all active & completed tasks",
+          "• /done <number> — Mark task # complete",
+          "• /note <text> — Save a quick note",
+          "• /notes — Display saved notes",
+          "• /focus <minutes> — Start a countdown focus timer (e.g. /focus 25)",
+          "• /briefing — Status report of time, tasks, and notes",
+          "• Or ask any open-ended question once AI Config is set."
+        ].join("\n");
+      }
+
+      if (lower.startsWith("/todo ")) {
+        const item = trimmed.slice(6).trim();
+        if (!item) return "Specify a task description after /todo.";
+        state.tasks.push({ id: Date.now(), text: item, done: false });
+        saveState();
+        const openCount = state.tasks.filter(t => !t.done).length;
+        return `Logged task: "${item}". Active queue: ${openCount} task(s).`;
+      }
+
+      if (lower === "/tasks") {
+        if (!state.tasks.length) return "Task queue is empty. Add one with /todo <task>.";
+        return "Current Tasks:\n" + state.tasks.map((t, i) => `${i + 1}. [${t.done ? "✓" : " "}] ${t.text}`).join("\n");
+      }
+
+      if (lower.startsWith("/done ")) {
+        const idx = parseInt(trimmed.slice(6).trim(), 10) - 1;
+        if (isNaN(idx) || !state.tasks[idx]) return "Invalid task index. Check /tasks first.";
+        state.tasks[idx].done = true;
+        saveState();
+        return `Completed task #${idx + 1}: "${state.tasks[idx].text}".`;
+      }
+
+      if (lower.startsWith("/note ")) {
+        const note = trimmed.slice(6).trim();
+        if (!note) return "Provide note content after /note.";
+        state.notes.push({ id: Date.now(), text: note, date: new Date().toLocaleDateString() });
+        saveState();
+        return `Archived note: "${note}".`;
+      }
+
+      if (lower === "/notes") {
+        if (!state.notes.length) return "No notes stored yet. Use /note <text>.";
+        return "Archived Notes:\n" + state.notes.map((n, i) => `${i + 1}. (${n.date}) ${n.text}`).join("\n");
+      }
+
+      if (lower.startsWith("/focus")) {
+        const mins = parseInt(trimmed.split(/\s+/)[1], 10) || 25;
+        startFocusTimer(mins);
+        return `Initiating ${mins}-minute focus protocol, ${state.config.userName}.`;
+      }
+
+      if (lower === "/briefing") {
+        const now = new Date();
+        const openTasks = state.tasks.filter(t => !t.done);
+        return [
+          `System Briefing for ${state.config.userName}:`,
+          `• Date & Time: ${now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })} at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+          `• Open Tasks: ${openTasks.length} (${openTasks.slice(0, 3).map(t => t.text).join("; ") || "None"})`,
+          `• Stored Notes: ${state.notes.length}`,
+          `• Neural Engine: ${state.config.provider === "local" ? "Local Mode (Add API Key in AI Config for full LLM)" : state.config.model}`
+        ].join("\n");
+      }
+
+      // If AI API is configured, call LLM with task/note context
+      if (state.config.provider !== "local" && state.config.apiKey.trim()) {
+        return await queryLLM(trimmed);
+      }
+
+      // Smart Local Fallback
+      if (lower.includes("time") || lower.includes("date")) {
+        return `It is currently ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} on ${new Date().toLocaleDateString()}.`;
+      }
+
+      return `Standing by, ${state.config.userName}. Use /help to see built-in commands, or open "AI Config" in the top bar to connect an API key for full conversational intelligence.`;
+    }
+
+    async function queryLLM(userMessage) {
+      const contextSummary = `User Name: ${state.config.userName}. Open Tasks: ${state.tasks.filter(t => !t.done).map(t => t.text).join(", ") || "None"}. Recent Notes: ${state.notes.slice(-3).map(n => n.text).join(" | ") || "None"}.`;
+
+      const recentMsgs = state.history.slice(-8).map(m => ({
+        role: m.sender === "jarvis" ? "assistant" : "user",
+        content: m.text
+      }));
+
+      try {
+        const res = await fetch(state.config.baseUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.config.apiKey.trim()}`
+          },
+          body: JSON.stringify({
+            model: state.config.model,
+            messages: [
+              { role: "system", content: `${state.config.persona}\nContext: ${contextSummary}` },
+              ...recentMsgs,
+              { role: "user", content: userMessage }
+            ]
+          })
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          return `API Error (${res.status}): Check your API key, endpoint URL, or model ID in AI Config.\n${errText.slice(0, 180)}`;
+        }
+
+        const data = await res.json();
+        return data.choices?.[0]?.message?.content?.trim() || "No response payload received from model.";
+      } catch (err) {
+        return `Network/CORS Error connecting to AI endpoint: ${err.message}`;
+      }
+    }
+
+    // Form Submission
+    formEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) return;
+      inputEl.value = "";
+      renderMessage("user", text);
+
+      const typingEl = document.createElement("div");
+      typingEl.className = "msg jarvis";
+      typingEl.textContent = "Processing...";
+      logEl.appendChild(typingEl);
+      logEl.scrollTop = logEl.scrollHeight;
+
+      const reply = await processInput(text);
+      typingEl.remove();
+      renderMessage("jarvis", reply);
+      speak(reply);
+    });
+
+    // Quick Chips
+    document.querySelectorAll(".chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        inputEl.value = btn.dataset.cmd;
+        formEl.dispatchEvent(new Event("submit"));
+      });
+    });
+
+    // Voice Toggle
+    voiceToggleBtn.addEventListener("click", () => {
+      state.voiceEnabled = !state.voiceEnabled;
+      if (!state.voiceEnabled && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      saveState();
+    });
+
+    // Speech-to-Text Microphone
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+
+      micBtn.addEventListener("click", () => {
+        micBtn.classList.add("listening");
+        micBtn.textContent = "...";
+        recognition.start();
+      });
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        inputEl.value = transcript;
+        formEl.dispatchEvent(new Event("submit"));
+      };
+
+      recognition.onend = () => {
+        micBtn.classList.remove("listening");
+        micBtn.textContent = "Mic";
+      };
+
+      recognition.onerror = () => {
+        micBtn.classList.remove("listening");
+        micBtn.textContent = "Mic";
+      };
+    } else {
+      micBtn.style.display = "none";
+    }
+
+    // Clear Log
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      state.history = [];
+      logEl.innerHTML = "";
+      saveState();
+      renderMessage("jarvis", `Log cleared, ${state.config.userName}. Tasks and notes remain intact.`);
+    });
+
+    // AI Config Modal Logic
+    const settingsModal = document.getElementById("settingsModal");
+    const cfgProvider = document.getElementById("cfgProvider");
+    const cfgBaseUrl = document.getElementById("cfgBaseUrl");
+    const cfgModel = document.getElementById("cfgModel");
+
+    cfgProvider.addEventListener("change", () => {
+      if (cfgProvider.value === "openai") {
+        cfgBaseUrl.value = "https://api.openai.com/v1/chat/completions";
+        cfgModel.value = "gpt-4o-mini";
+      } else if (cfgProvider.value === "openrouter") {
+        cfgBaseUrl.value = "https://openrouter.ai/api/v1/chat/completions";
+        cfgModel.value = "google/gemini-2.0-flash-001";
+      }
+    });
+
+    document.getElementById("settingsBtn").addEventListener("click", () => {
+      document.getElementById("cfgUserName").value = state.config.userName;
+      cfgProvider.value = state.config.provider;
+      cfgBaseUrl.value = state.config.baseUrl;
+      document.getElementById("cfgApiKey").value = state.config.apiKey;
+      cfgModel.value = state.config.model;
+      document.getElementById("cfgPersona").value = state.config.persona;
+      settingsModal.classList.add("open");
+    });
+
+    document.getElementById("closeSettingsBtn").addEventListener("click", () => {
+      settingsModal.classList.remove("open");
+    });
+
+    document.getElementById("saveSettingsBtn").addEventListener("click", () => {
+      state.config.userName = document.getElementById("cfgUserName").value.trim() || "Sir";
+      state.config.provider = cfgProvider.value;
+      state.config.baseUrl = cfgBaseUrl.value.trim();
+      state.config.apiKey = document.getElementById("cfgApiKey").value.trim();
+      state.config.model = cfgModel.value.trim();
+      state.config.persona = document.getElementById("cfgPersona").value.trim();
+      saveState();
+      settingsModal.classList.remove("open");
+      renderMessage("jarvis", `Configuration updated. Ready, ${state.config.userName}.`);
+    });
+
+    // Tasks & Notes Manager Modal
+    const dataModal = document.getElementById("dataModal");
+
+    function renderDataModal() {
+      const taskList = document.getElementById("modalTaskList");
+      const noteList = document.getElementById("modalNoteList");
+      taskList.innerHTML = state.tasks.length ? "" : `<span style="color:var(--muted);font-size:0.82rem;">No tasks logged.</span>`;
+      noteList.innerHTML = state.notes.length ? "" : `<span style="color:var(--muted);font-size:0.82rem;">No notes saved.</span>`;
+
+      state.tasks.forEach((t, idx) => {
+        const row = document.createElement("div");
+        row.className = `list-item ${t.done ? "done" : ""}`;
+        row.innerHTML = `<span>${escapeHtml(t.text)}</span><div style="display:flex;gap:4px;">
+          <button data-toggle="${idx}">${t.done ? "Undo" : "Done"}</button>
+          <button data-del-task="${idx}">×</button>
+        </div>`;
+        taskList.appendChild(row);
+      });
+
+      state.notes.forEach((n, idx) => {
+        const row = document.createElement("div");
+        row.className = "list-item";
+        row.innerHTML = `<span>${escapeHtml(n.text)}</span><button data-del-note="${idx}">×</button>`;
+        noteList.appendChild(row);
+      });
+
+      taskList.querySelectorAll("[data-toggle]").forEach(b => b.addEventListener("click", () => {
+        const i = Number(b.dataset.toggle);
+        state.tasks[i].done = !state.tasks[i].done;
+        saveState();
+        renderDataModal();
+      }));
+
+      taskList.querySelectorAll("[data-del-task]").forEach(b => b.addEventListener("click", () => {
+        state.tasks.splice(Number(b.dataset.delTask), 1);
+        saveState();
+        renderDataModal();
+      }));
+
+      noteList.querySelectorAll("[data-del-note]").forEach(b => b.addEventListener("click", () => {
+        state.notes.splice(Number(b.dataset.delNote), 1);
+        saveState();
+        renderDataModal();
+      }));
+    }
+
+    document.getElementById("tasksModalBtn").addEventListener("click", () => {
+      renderDataModal();
+      dataModal.classList.add("open");
+    });
+
+    document.getElementById("closeDataModalBtn").addEventListener("click", () => {
+      dataModal.classList.remove("open");
+    });
+
+    document.getElementById("addTaskModalBtn").addEventListener("click", () => {
+      const inp = document.getElementById("newTaskInput");
+      const val = inp.value.trim();
+      if (!val) return;
+      state.tasks.push({ id: Date.now(), text: val, done: false });
+      inp.value = "";
+      saveState();
+      renderDataModal();
+    });
+
+    // Boot Sequence
+    updateStatusBadge();
+    if (state.history.length) {
+      state.history.forEach(m => renderMessage(m.sender, m.text, m.time, false));
+    } else {
+      renderMessage("jarvis", `All systems online, ${state.config.userName}. Tap a quick command above, type /help, or configure your AI key in "AI Config".`);
+    }
+  </script>
+</body>
+</html>
